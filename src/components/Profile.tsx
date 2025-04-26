@@ -14,7 +14,7 @@ import {
   Flag, 
   Mail,
   IdCard,
-  Passport,
+  Badge,
   Edit
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
@@ -233,7 +233,7 @@ const Profile = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Passport className="h-5 w-5 text-gray-500" />
+                  <Badge className="h-5 w-5 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-500">Passport Number</p>
                     <p className="font-medium">{profileData.passport_number || 'Not provided'}</p>
