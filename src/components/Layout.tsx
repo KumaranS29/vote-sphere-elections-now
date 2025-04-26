@@ -1,8 +1,7 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, User } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 
 interface LayoutProps {
@@ -19,7 +18,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate("/login");
   };
   
-  // Redirect if not logged in
   if (!currentUser) {
     navigate("/login");
     return null;
@@ -35,11 +33,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       : []),
     { label: "Elections", path: "/elections" },
     { label: "Results", path: "/results" },
+    { label: "Profile", path: "/profile" },
   ];
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="bg-election-primary text-white shadow-md">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -50,7 +48,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               VoteSphere
             </h1>
             
-            {/* Mobile menu button */}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -61,7 +58,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Button>
           </div>
           
-          {/* Desktop navigation */}
           <nav className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (
               <Button 
@@ -90,7 +86,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
         
-        {/* Mobile menu */}
         {menuOpen && (
           <div className="md:hidden bg-election-secondary">
             <div className="container mx-auto px-4 py-2">
@@ -115,12 +110,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         )}
       </header>
       
-      {/* Main content */}
       <main className="flex-1 container mx-auto px-4 py-6">
         {children}
       </main>
       
-      {/* Footer */}
       <footer className="bg-gray-100 py-4">
         <div className="container mx-auto px-4 text-center text-gray-600">
           <p>&copy; 2025 VoteSphere. All rights reserved.</p>

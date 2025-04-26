@@ -11,37 +11,55 @@ export type Database = {
     Tables: {
       users: {
         Row: {
+          aadhaar_number: string | null
           avatar_url: string | null
+          country: string | null
           created_at: string
+          district: string | null
           email: string | null
           full_name: string | null
           id: string
           image: string | null
           name: string | null
+          passport_number: string | null
+          phone_number: string | null
+          state: Database["public"]["Enums"]["indian_state"] | null
           token_identifier: string
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          aadhaar_number?: string | null
           avatar_url?: string | null
+          country?: string | null
           created_at?: string
+          district?: string | null
           email?: string | null
           full_name?: string | null
           id: string
           image?: string | null
           name?: string | null
+          passport_number?: string | null
+          phone_number?: string | null
+          state?: Database["public"]["Enums"]["indian_state"] | null
           token_identifier: string
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          aadhaar_number?: string | null
           avatar_url?: string | null
+          country?: string | null
           created_at?: string
+          district?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           image?: string | null
           name?: string | null
+          passport_number?: string | null
+          phone_number?: string | null
+          state?: Database["public"]["Enums"]["indian_state"] | null
           token_identifier?: string
           updated_at?: string | null
           user_id?: string | null
@@ -56,7 +74,43 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      indian_state:
+        | "Andhra Pradesh"
+        | "Arunachal Pradesh"
+        | "Assam"
+        | "Bihar"
+        | "Chhattisgarh"
+        | "Goa"
+        | "Gujarat"
+        | "Haryana"
+        | "Himachal Pradesh"
+        | "Jharkhand"
+        | "Karnataka"
+        | "Kerala"
+        | "Madhya Pradesh"
+        | "Maharashtra"
+        | "Manipur"
+        | "Meghalaya"
+        | "Mizoram"
+        | "Nagaland"
+        | "Odisha"
+        | "Punjab"
+        | "Rajasthan"
+        | "Sikkim"
+        | "Tamil Nadu"
+        | "Telangana"
+        | "Tripura"
+        | "Uttar Pradesh"
+        | "Uttarakhand"
+        | "West Bengal"
+        | "Andaman and Nicobar Islands"
+        | "Chandigarh"
+        | "Dadra and Nagar Haveli and Daman and Diu"
+        | "Delhi"
+        | "Jammu and Kashmir"
+        | "Ladakh"
+        | "Lakshadweep"
+        | "Puducherry"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -171,6 +225,45 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      indian_state: [
+        "Andhra Pradesh",
+        "Arunachal Pradesh",
+        "Assam",
+        "Bihar",
+        "Chhattisgarh",
+        "Goa",
+        "Gujarat",
+        "Haryana",
+        "Himachal Pradesh",
+        "Jharkhand",
+        "Karnataka",
+        "Kerala",
+        "Madhya Pradesh",
+        "Maharashtra",
+        "Manipur",
+        "Meghalaya",
+        "Mizoram",
+        "Nagaland",
+        "Odisha",
+        "Punjab",
+        "Rajasthan",
+        "Sikkim",
+        "Tamil Nadu",
+        "Telangana",
+        "Tripura",
+        "Uttar Pradesh",
+        "Uttarakhand",
+        "West Bengal",
+        "Andaman and Nicobar Islands",
+        "Chandigarh",
+        "Dadra and Nagar Haveli and Daman and Diu",
+        "Delhi",
+        "Jammu and Kashmir",
+        "Ladakh",
+        "Lakshadweep",
+        "Puducherry",
+      ],
+    },
   },
 } as const
