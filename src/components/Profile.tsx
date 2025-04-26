@@ -14,10 +14,13 @@ import {
   Flag, 
   Mail,
   IdCard,
-  Badge,
+  FileCheck,
   Edit
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type IndianState = Database["public"]["Enums"]["indian_state"];
 
 interface ProfileData {
   name: string;
@@ -25,7 +28,7 @@ interface ProfileData {
   phone_number: string | null;
   aadhaar_number: string | null;
   passport_number: string | null;
-  state: string | null;
+  state: IndianState | null;
   district: string | null;
 }
 
@@ -39,7 +42,7 @@ const Profile = () => {
     phone_number: '',
     aadhaar_number: '',
     passport_number: '',
-    state: '',
+    state: null,
     district: ''
   });
 
@@ -70,7 +73,7 @@ const Profile = () => {
           phone_number: data.phone_number || '',
           aadhaar_number: data.aadhaar_number || '',
           passport_number: data.passport_number || '',
-          state: data.state || '',
+          state: data.state,
           district: data.district || ''
         });
       }
@@ -114,7 +117,7 @@ const Profile = () => {
     'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
     'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
     'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
-  ];
+  ] as IndianState[];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -173,7 +176,7 @@ const Profile = () => {
                     id="state"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     value={profileData.state || ''}
-                    onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                    onChange={(e) => setProfileData({ ...profileData, state: e.target.value as IndianState })}
                   >
                     <option value="">Select State</option>
                     {indianStates.map((state) => (
@@ -233,7 +236,7 @@ const Profile = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Badge className="h-5 w-5 text-gray-500" />
+                  <FileCheck className="h-5 w-5 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-500">Passport Number</p>
                     <p className="font-medium">{profileData.passport_number || 'Not provided'}</p>
