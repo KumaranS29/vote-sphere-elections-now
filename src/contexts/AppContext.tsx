@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 // Define types
-export interface AppUser {
+export interface User {
   id: string;
   email: string;
-  name: string | null;
-  role: "admin" | "voter" | "candidate";
+  password?: string;
+  name?: string | null;  // Made optional
+  role?: "admin" | "voter" | "candidate";  // Made optional
 }
 
 export interface Election {
@@ -39,8 +40,8 @@ export interface Vote {
 
 // Type for the context
 interface AppContextType {
-  users: AppUser[];
-  currentUser: AppUser | null;
+  users: User[];
+  currentUser: User | null;
   elections: Election[];
   candidates: Candidate[];
   votes: Vote[];
@@ -73,26 +74,24 @@ const AppContext = createContext<AppContextType>({
   getElectionResults: () => [],
 });
 
+// Admin user data
+const adminUser: User = {
+  id: "admin-1",
+  email: "kumaransenthilarasu@gmail.com",
+  password: "SK29@2006",
+  name: "Admin",
+  role: "admin",
+};
+
 // Context provider component
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  // State management
+  const [users, setUsers] = useState<User[]>([adminUser]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const [elections, setElections] = useState<Election[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
-
-  // Convert Supabase User to our AppUser
-  const transformUser = (user: any): AppUser | null => {
-    if (!user) return null;
-    
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.user_metadata?.name || null,
-      role: user.user_metadata?.role || 'voter'
-    };
-  };
 
   // Load data from localStorage on initial load
   useEffect(() => {
@@ -102,7 +101,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const storedVotes = localStorage.getItem("votes");
     const storedCurrentUser = localStorage.getItem("currentUser");
 
-    if (storedUsers) setUsers(JSON.parse(storedUsers));
+    if (storedUsers) {
+      const parsedUsers = JSON.parse(storedUsers);
+      // Ensure admin user is always included
+      if (!parsedUsers.some((user: User) => user.id === "admin-1")) {
+        parsedUsers.push(adminUser);
+      }
+      setUsers(parsedUsers);
+    } else {
+      // Initialize with admin user
+      setUsers([adminUser]);
+    }
+
     if (storedElections) setElections(JSON.parse(storedElections));
     if (storedCandidates) setCandidates(JSON.parse(storedCandidates));
     if (storedVotes) setVotes(JSON.parse(storedVotes));
@@ -134,44 +144,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        const user = transformUser(session?.user);
+ // Update the auth state listener
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (session?.user) {
+        const supabaseUser = session.user;
+        // Map Supabase user to your User type
+        const user: User = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          name: supabaseUser.user_metadata?.name || null,
+          role: supabaseUser.user_metadata?.role || 'voter'
+        };
         setCurrentUser(user);
+      } else {
+        setCurrentUser(null);
       }
-    );
+    }
+  );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = transformUser(session?.user);
+  // Check for existing session
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const supabaseUser = session.user;
+      const user: User = {
+        id: supabaseUser.id,
+        email: supabaseUser.email || '',
+        name: supabaseUser.user_metadata?.name || null,
+        role: supabaseUser.user_metadata?.role || 'voter'
+      };
       setCurrentUser(user);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+const login = async (email: string, password: string) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    if (error) throw error;
 
-  const login = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-      
-      const user = transformUser(data.user);
+    if (data.user) {
+      const user: User = {
+        id: data.user.id,
+        email: data.user.email || '',
+        name: data.user.user_metadata?.name || null,
+        role: data.user.user_metadata?.role || 'voter'
+      };
       setCurrentUser(user);
-      
-      toast.success('Login successful');
-      return true;
-    } catch (error: any) {
-      toast.error(error.message);
-      return false;
     }
-  };
 
+    toast.success('Login successful');
+    return true;
+  } catch (error: any) {
+    toast.error(error.message);
+    return false;
+  }
+};
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -184,39 +219,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toast.error(error.message);
     }
   };
-
-  const register = async (email: string, password: string, name: string, role: "voter" | "candidate") => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        const newUser: AppUser = {
-          id: data.user.id,
-          email: data.user.email!,
+const register = async (email: string, password: string, name: string, role: "voter" | "candidate") => {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
           name,
           role
-        };
-        setUsers(prev => [...prev, newUser]);
+        }
       }
+    });
 
-      toast.success('Registration successful. Please check your email for verification.');
-      return true;
-    } catch (error: any) {
-      toast.error(error.message);
-      return false;
+    if (error) throw error;
+
+    // Add to local users array
+    if (data.user) {
+      const newUser: User = {
+        id: data.user.id,
+        email,
+        name,
+        role
+      };
+      setUsers(prev => [...prev, newUser]);
     }
-  };
+
+    toast.success('Registration successful. Please check your email for verification.');
+    return true;
+  } catch (error: any) {
+    toast.error(error.message);
+    return false;
+  }
+};
 
   // Election management functions
   const addElection = (title: string, description: string, startDate: string, endDate: string) => {
