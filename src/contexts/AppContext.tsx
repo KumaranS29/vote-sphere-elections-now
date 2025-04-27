@@ -1,13 +1,14 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define types
 export interface User {
   id: string;
   email: string;
-  password: string;
-  name: string;
+  password?: string;
+  name: string | null;
   role: "admin" | "voter" | "candidate";
 }
 
@@ -24,7 +25,7 @@ export interface Election {
 export interface Candidate {
   id: string;
   userId: string;
-  name: string;
+  name: string | null;
   electionId: string;
   position: string;
   votes: number;
@@ -44,9 +45,9 @@ interface AppContextType {
   elections: Election[];
   candidates: Candidate[];
   votes: Vote[];
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
-  register: (email: string, password: string, name: string, role: "voter" | "candidate") => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  register: (email: string, password: string, name: string, role: "voter" | "candidate") => Promise<boolean>;
   addElection: (title: string, description: string, startDate: string, endDate: string) => void;
   updateElectionStatus: (id: string, status: "upcoming" | "active" | "completed") => void;
   applyForElection: (userId: string, electionId: string, position: string) => boolean;
@@ -62,9 +63,9 @@ const AppContext = createContext<AppContextType>({
   elections: [],
   candidates: [],
   votes: [],
-  login: () => false,
-  logout: () => {},
-  register: () => false,
+  login: async () => false,
+  logout: async () => {},
+  register: async () => false,
   addElection: () => {},
   updateElectionStatus: () => {},
   applyForElection: () => false,
@@ -87,6 +88,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // State management
   const [users, setUsers] = useState<User[]>([adminUser]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const navigate = useNavigate();
   const [elections, setElections] = useState<Election[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -142,44 +144,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  // User authentication functions
-  const login = (email: string, password: string): boolean => {
-    const user = users.find(
-      (u) => u.email === email && u.password === password
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setCurrentUser(session?.user ?? null);
+      }
     );
-    
-    if (user) {
-      setCurrentUser(user);
-      toast.success("Login successful");
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+      toast.success('Login successful');
       return true;
-    }
-    
-    toast.error("Invalid email or password");
-    return false;
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    toast.info("Logged out successfully");
-  };
-
-  const register = (email: string, password: string, name: string, role: "voter" | "candidate"): boolean => {
-    if (users.some((u) => u.email === email)) {
-      toast.error("Email already exists");
+    } catch (error: any) {
+      toast.error(error.message);
       return false;
     }
+  };
 
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      email,
-      password,
-      name,
-      role,
-    };
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setCurrentUser(null);
+      navigate('/login');
+      toast.success('Logged out successfully');
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
 
-    setUsers((prevUsers) => [...prevUsers, newUser]);
-    toast.success("Registration successful. Please login.");
-    return true;
+  const register = async (email: string, password: string, name: string, role: "voter" | "candidate") => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success('Registration successful. Please check your email for verification.');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message);
+      return false;
+    }
   };
 
   // Election management functions

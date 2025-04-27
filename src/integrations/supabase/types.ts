@@ -9,62 +9,185 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      candidates: {
+        Row: {
+          created_at: string
+          election_id: string
+          id: string
+          position: string
+          updated_at: string
+          user_id: string
+          votes: number | null
+        }
+        Insert: {
+          created_at?: string
+          election_id: string
+          id?: string
+          position: string
+          updated_at?: string
+          user_id: string
+          votes?: number | null
+        }
+        Update: {
+          created_at?: string
+          election_id?: string
+          id?: string
+          position?: string
+          updated_at?: string
+          user_id?: string
+          votes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      elections: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          start_date: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          start_date: string
+          status: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          start_date?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           aadhaar_number: string | null
-          avatar_url: string | null
-          country: string | null
           created_at: string
           district: string | null
           email: string | null
-          full_name: string | null
           id: string
-          image: string | null
           name: string | null
           passport_number: string | null
           phone_number: string | null
+          role: string
           state: Database["public"]["Enums"]["indian_state"] | null
-          token_identifier: string
-          updated_at: string | null
-          user_id: string | null
+          updated_at: string
+          user_id: string
         }
         Insert: {
           aadhaar_number?: string | null
-          avatar_url?: string | null
-          country?: string | null
           created_at?: string
           district?: string | null
           email?: string | null
-          full_name?: string | null
-          id: string
-          image?: string | null
+          id?: string
           name?: string | null
           passport_number?: string | null
           phone_number?: string | null
+          role: string
           state?: Database["public"]["Enums"]["indian_state"] | null
-          token_identifier: string
-          updated_at?: string | null
-          user_id?: string | null
+          updated_at?: string
+          user_id: string
         }
         Update: {
           aadhaar_number?: string | null
-          avatar_url?: string | null
-          country?: string | null
           created_at?: string
           district?: string | null
           email?: string | null
-          full_name?: string | null
           id?: string
-          image?: string | null
           name?: string | null
           passport_number?: string | null
           phone_number?: string | null
+          role?: string
           state?: Database["public"]["Enums"]["indian_state"] | null
-          token_identifier?: string
-          updated_at?: string | null
-          user_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
+      }
+      votes: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          election_id: string
+          id: string
+          voter_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          election_id: string
+          id?: string
+          voter_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          election_id?: string
+          id?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
