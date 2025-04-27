@@ -4,10 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 // Define types
-export interface User {
+export interface AppUser {
   id: string;
   email: string;
-  password?: string;
   name: string | null;
   role: "admin" | "voter" | "candidate";
 }
@@ -40,8 +39,8 @@ export interface Vote {
 
 // Type for the context
 interface AppContextType {
-  users: User[];
-  currentUser: User | null;
+  users: AppUser[];
+  currentUser: AppUser | null;
   elections: Election[];
   candidates: Candidate[];
   votes: Vote[];
@@ -74,24 +73,26 @@ const AppContext = createContext<AppContextType>({
   getElectionResults: () => [],
 });
 
-// Admin user data
-const adminUser: User = {
-  id: "admin-1",
-  email: "kumaransenthilarasu@gmail.com",
-  password: "SK29@2006",
-  name: "Admin",
-  role: "admin",
-};
-
 // Context provider component
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // State management
-  const [users, setUsers] = useState<User[]>([adminUser]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const navigate = useNavigate();
   const [elections, setElections] = useState<Election[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
+
+  // Convert Supabase User to our AppUser
+  const transformUser = (user: any): AppUser | null => {
+    if (!user) return null;
+    
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.name || null,
+      role: user.user_metadata?.role || 'voter'
+    };
+  };
 
   // Load data from localStorage on initial load
   useEffect(() => {
@@ -101,18 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const storedVotes = localStorage.getItem("votes");
     const storedCurrentUser = localStorage.getItem("currentUser");
 
-    if (storedUsers) {
-      const parsedUsers = JSON.parse(storedUsers);
-      // Ensure admin user is always included
-      if (!parsedUsers.some((user: User) => user.id === "admin-1")) {
-        parsedUsers.push(adminUser);
-      }
-      setUsers(parsedUsers);
-    } else {
-      // Initialize with admin user
-      setUsers([adminUser]);
-    }
-
+    if (storedUsers) setUsers(JSON.parse(storedUsers));
     if (storedElections) setElections(JSON.parse(storedElections));
     if (storedCandidates) setCandidates(JSON.parse(storedCandidates));
     if (storedVotes) setVotes(JSON.parse(storedVotes));
@@ -148,13 +138,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setCurrentUser(session?.user ?? null);
+        const user = transformUser(session?.user);
+        setCurrentUser(user);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setCurrentUser(session?.user ?? null);
+      const user = transformUser(session?.user);
+      setCurrentUser(user);
     });
 
     return () => subscription.unsubscribe();
@@ -168,6 +160,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       if (error) throw error;
+      
+      const user = transformUser(data.user);
+      setCurrentUser(user);
+      
       toast.success('Login successful');
       return true;
     } catch (error: any) {
@@ -203,6 +199,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       if (error) throw error;
+
+      if (data.user) {
+        const newUser: AppUser = {
+          id: data.user.id,
+          email: data.user.email!,
+          name,
+          role
+        };
+        setUsers(prev => [...prev, newUser]);
+      }
 
       toast.success('Registration successful. Please check your email for verification.');
       return true;
