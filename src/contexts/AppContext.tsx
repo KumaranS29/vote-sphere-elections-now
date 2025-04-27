@@ -1,8 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define types
 export interface User {
@@ -85,11 +85,10 @@ const adminUser: User = {
 };
 
 // Context provider component
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () => void }> = ({ children, onLogout }) => {
   // State management
   const [users, setUsers] = useState<User[]>([adminUser]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const navigate = useNavigate();
   const [elections, setElections] = useState<Election[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -146,12 +145,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUser]);
 
   // Update the auth state listener
-useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (event, session) => {
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          const supabaseUser = session.user;
+          // Map Supabase user to your User type
+          const user: User = {
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            name: supabaseUser.user_metadata?.name || null,
+            role: supabaseUser.user_metadata?.role as "admin" | "voter" | "candidate" || 'voter'
+          };
+          setCurrentUser(user);
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const supabaseUser = session.user;
-        // Map Supabase user to your User type
         const user: User = {
           id: supabaseUser.id,
           email: supabaseUser.email || '',
@@ -159,227 +175,212 @@ useEffect(() => {
           role: supabaseUser.user_metadata?.role as "admin" | "voter" | "candidate" || 'voter'
         };
         setCurrentUser(user);
-      } else {
-        setCurrentUser(null);
       }
-    }
-  );
-
-  // Check for existing session
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      const supabaseUser = session.user;
-      const user: User = {
-        id: supabaseUser.id,
-        email: supabaseUser.email || '',
-        name: supabaseUser.user_metadata?.name || null,
-        role: supabaseUser.user_metadata?.role as "admin" | "voter" | "candidate" || 'voter'
-      };
-      setCurrentUser(user);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
-
-const login = async (email: string, password: string) => {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
     });
 
-    if (error) throw error;
+    return () => subscription.unsubscribe();
+  }, []);
 
-    if (data.user) {
-      const user: User = {
-        id: data.user.id,
-        email: data.user.email || '',
-        name: data.user.user_metadata?.name || null,
-        role: data.user.user_metadata?.role as "admin" | "voter" | "candidate" || 'voter'
-      };
-      setCurrentUser(user);
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const user: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || null,
+          role: data.user.user_metadata?.role as "admin" | "voter" | "candidate" || 'voter'
+        };
+        setCurrentUser(user);
+      }
+
+      toast.success('Login successful');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message);
+      return false;
     }
+  };
 
-    toast.success('Login successful');
-    return true;
-  } catch (error: any) {
-    toast.error(error.message);
-    return false;
-  }
-};
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setCurrentUser(null);
+      if (onLogout) {
+        onLogout();
+      }
+      toast.success('Logged out successfully');
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
 
-const logout = async () => {
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    
-    setCurrentUser(null);
-    navigate('/login');
-    toast.success('Logged out successfully');
-  } catch (error: any) {
-    toast.error(error.message);
-  }
-};
+  const register = async (email: string, password: string, name: string, role: "voter" | "candidate") => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role
+          }
+        }
+      });
 
-const register = async (email: string, password: string, name: string, role: "voter" | "candidate") => {
-  try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
+      if (error) throw error;
+
+      // Add to local users array
+      if (data.user) {
+        const newUser: User = {
+          id: data.user.id,
+          email,
           name,
           role
-        }
+        };
+        setUsers(prev => [...prev, newUser]);
       }
-    });
 
-    if (error) throw error;
+      toast.success('Registration successful. Please check your email for verification.');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message);
+      return false;
+    }
+  };
 
-    // Add to local users array
-    if (data.user) {
-      const newUser: User = {
-        id: data.user.id,
-        email,
-        name,
-        role
-      };
-      setUsers(prev => [...prev, newUser]);
+  // Election management functions
+  const addElection = (title: string, description: string, startDate: string, endDate: string) => {
+    const newElection: Election = {
+      id: `election-${Date.now()}`,
+      title,
+      description,
+      status: "upcoming",
+      startDate,
+      endDate,
+      candidates: [],
+    };
+
+    setElections((prevElections) => [...prevElections, newElection]);
+    toast.success("Election created successfully");
+  };
+
+  const updateElectionStatus = (id: string, status: "upcoming" | "active" | "completed") => {
+    setElections((prevElections) =>
+      prevElections.map((election) =>
+        election.id === id ? { ...election, status } : election
+      )
+    );
+    
+    toast.success(`Election status updated to ${status}`);
+  };
+
+  // Candidate functions
+  const applyForElection = (userId: string, electionId: string, position: string): boolean => {
+    const user = users.find((u) => u.id === userId);
+    const election = elections.find((e) => e.id === electionId);
+    
+    if (!user || !election) {
+      toast.error("Invalid user or election");
+      return false;
     }
 
-    toast.success('Registration successful. Please check your email for verification.');
+    if (candidates.some((c) => c.userId === userId && c.electionId === electionId)) {
+      toast.error("You have already applied for this election");
+      return false;
+    }
+
+    const newCandidate: Candidate = {
+      id: `candidate-${Date.now()}`,
+      userId,
+      name: user.name,
+      electionId,
+      position,
+      votes: 0,
+    };
+
+    setCandidates((prevCandidates) => [...prevCandidates, newCandidate]);
+    
+    // Update the election with the new candidate
+    setElections((prevElections) =>
+      prevElections.map((e) =>
+        e.id === electionId
+          ? { ...e, candidates: [...e.candidates, newCandidate.id] }
+          : e
+      )
+    );
+    
+    toast.success("Applied for election successfully");
     return true;
-  } catch (error: any) {
-    toast.error(error.message);
-    return false;
-  }
-};
-
-// Election management functions
-const addElection = (title: string, description: string, startDate: string, endDate: string) => {
-  const newElection: Election = {
-    id: `election-${Date.now()}`,
-    title,
-    description,
-    status: "upcoming",
-    startDate,
-    endDate,
-    candidates: [],
   };
 
-  setElections((prevElections) => [...prevElections, newElection]);
-  toast.success("Election created successfully");
-};
+  // Voting functions
+  const castVote = (electionId: string, candidateId: string, voterId: string): boolean => {
+    // Check if user has already voted
+    if (hasVoted(electionId, voterId)) {
+      toast.error("You have already voted in this election");
+      return false;
+    }
 
-const updateElectionStatus = (id: string, status: "upcoming" | "active" | "completed") => {
-  setElections((prevElections) =>
-    prevElections.map((election) =>
-      election.id === id ? { ...election, status } : election
-    )
-  );
-  
-  toast.success(`Election status updated to ${status}`);
-};
+    // Record the vote
+    const newVote: Vote = {
+      id: `vote-${Date.now()}`,
+      electionId,
+      candidateId,
+      voterId,
+    };
 
-// Candidate functions
-const applyForElection = (userId: string, electionId: string, position: string): boolean => {
-  const user = users.find((u) => u.id === userId);
-  const election = elections.find((e) => e.id === electionId);
-  
-  if (!user || !election) {
-    toast.error("Invalid user or election");
-    return false;
-  }
+    setVotes((prevVotes) => [...prevVotes, newVote]);
 
-  if (candidates.some((c) => c.userId === userId && c.electionId === electionId)) {
-    toast.error("You have already applied for this election");
-    return false;
-  }
+    // Increment candidate's vote count
+    setCandidates((prevCandidates) =>
+      prevCandidates.map((c) =>
+        c.id === candidateId ? { ...c, votes: c.votes + 1 } : c
+      )
+    );
 
-  const newCandidate: Candidate = {
-    id: `candidate-${Date.now()}`,
-    userId,
-    name: user.name,
-    electionId,
-    position,
-    votes: 0,
+    toast.success("Vote cast successfully");
+    return true;
   };
 
-  setCandidates((prevCandidates) => [...prevCandidates, newCandidate]);
-  
-  // Update the election with the new candidate
-  setElections((prevElections) =>
-    prevElections.map((e) =>
-      e.id === electionId
-        ? { ...e, candidates: [...e.candidates, newCandidate.id] }
-        : e
-    )
-  );
-  
-  toast.success("Applied for election successfully");
-  return true;
-};
-
-// Voting functions
-const castVote = (electionId: string, candidateId: string, voterId: string): boolean => {
-  // Check if user has already voted
-  if (hasVoted(electionId, voterId)) {
-    toast.error("You have already voted in this election");
-    return false;
-  }
-
-  // Record the vote
-  const newVote: Vote = {
-    id: `vote-${Date.now()}`,
-    electionId,
-    candidateId,
-    voterId,
+  const hasVoted = (electionId: string, voterId: string): boolean => {
+    return votes.some((v) => v.electionId === electionId && v.voterId === voterId);
   };
 
-  setVotes((prevVotes) => [...prevVotes, newVote]);
+  // Results function
+  const getElectionResults = (electionId: string): Candidate[] => {
+    return candidates
+      .filter((c) => c.electionId === electionId)
+      .sort((a, b) => b.votes - a.votes);
+  };
 
-  // Increment candidate's vote count
-  setCandidates((prevCandidates) =>
-    prevCandidates.map((c) =>
-      c.id === candidateId ? { ...c, votes: c.votes + 1 } : c
-    )
-  );
+  // Provide the context value
+  const contextValue: AppContextType = {
+    users,
+    currentUser,
+    elections,
+    candidates,
+    votes,
+    login,
+    logout,
+    register,
+    addElection,
+    updateElectionStatus,
+    applyForElection,
+    castVote,
+    hasVoted,
+    getElectionResults,
+  };
 
-  toast.success("Vote cast successfully");
-  return true;
-};
-
-const hasVoted = (electionId: string, voterId: string): boolean => {
-  return votes.some((v) => v.electionId === electionId && v.voterId === voterId);
-};
-
-// Results function
-const getElectionResults = (electionId: string): Candidate[] => {
-  return candidates
-    .filter((c) => c.electionId === electionId)
-    .sort((a, b) => b.votes - a.votes);
-};
-
-// Provide the context value
-const contextValue: AppContextType = {
-  users,
-  currentUser,
-  elections,
-  candidates,
-  votes,
-  login,
-  logout,
-  register,
-  addElection,
-  updateElectionStatus,
-  applyForElection,
-  castVote,
-  hasVoted,
-  getElectionResults,
-};
-
-return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
+  return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 };
 
 // Custom hook for using the context
