@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -190,7 +189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
           setCandidates(mappedCandidates);
         }
 
-        // Fetch votes if admin or relevant to user
+        // Fetch votes
         const { data: votesData } = await supabase
           .from('votes')
           .select('*');
